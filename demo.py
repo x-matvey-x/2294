@@ -15,7 +15,7 @@ def pdf_to_images(pdf_bytes, save_dir, filename):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     saved_paths = []
     for i, page in enumerate(doc):
-        mat = fitz.Matrix(2.0, 2.0)
+        mat = fitz.Matrix(3.0, 3.0)
         pix = page.get_pixmap(matrix=mat)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         page_filename = f"{doc_name}_page{i+1}.jpg"
@@ -32,11 +32,17 @@ def zip_to_images(zip_bytes, save_dir, filename):
         for i, file_info in enumerate(z.infolist()):
             if file_info.filename.lower().endswith((".png", ".jpg", ".jpeg")):
                 with z.open(file_info) as img_file:
-                    img = Image.open(img_file)
-
+                    img_data = img_file.read()
+                
+                img = Image.open(BytesIO(img_data))
+                img.load()
+                
+                new_size = (img.width * 2, img.height * 2)
+                img_resized = img.resize(new_size, Image.Resampling.LANCZOS)
+                
                 page_filename = f"{doc_name}_page{i+1}.jpg"
                 new_path = os.path.join(save_dir, page_filename)
-                img.save(new_path, "JPEG", quality=95, subsampling=0)
+                img_resized.save(new_path, "JPEG", quality=95)
                 saved_paths.append(new_path)
     return saved_paths
 
@@ -47,7 +53,9 @@ def single_image(image_bytes, filename, save_dir):
     path = os.path.join(save_dir, page_filename)
     img = Image.open(BytesIO(image_bytes))
 
-    img.save(path, "JPEG", quality=95, optimize=True, subsampling=0)
+    new_size = (img.width * 2, img.height * 2)
+    img_resized = img.resize(new_size, Image.Resampling.LANCZOS)
+    img_resized.save(path, "JPEG", quality=95)
     return [path]
 
 
