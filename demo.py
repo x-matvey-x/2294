@@ -3,11 +3,29 @@ import fitz
 from PIL import Image
 import os
 import zipfile
-from io import BytesIO
-
+from io import BytesIO, StringIO
+import json
+import pandas as pd
 
 output_dir = "saved_images"
 os.makedirs(output_dir, exist_ok=True)
+
+
+def mock_ocr(page_num, total_pages, filename):
+    """Генерирует фейковый распознанный текст"""
+    doc_name = os.path.splitext(filename)[0]
+    return {
+        "document": doc_name,
+        "page": page_num + 1,
+        "total_pages": total_pages,
+        "recognized_text": f"Распознанный текст страницы {page_num + 1}. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Строка с цифрами 12345.",
+        "confidence": round(0.85 + (page_num * 0.03), 2),
+        "fields": {
+            "field1": f"Значение {page_num + 1}",
+            "field2": f"Данные {page_num + 1}",
+            "field3": f"Результат {page_num + 1}"
+        }
+    }
 
 
 def pdf_to_images(pdf_bytes, save_dir, filename):
@@ -135,14 +153,42 @@ def main():
                     if st.button("Вперёд"):
                         st.session_state.page = (st.session_state.page + 1) % len(image_paths)
 
-            st.markdown('</div>', unsafe_allow_html=True)
-
         else:
             st.image(
                 image_paths[0],
                 caption=os.path.basename(image_paths[0]),
                 use_container_width=True,
             )
+        st.markdown('</div>', unsafe_allow_html=True)
+        ocr_data = mock_ocr(st.session_state.page, len(image_paths), filename)
+
+        st.subheader("Распознанный текст (JSON):")
+        json_str = json.dumps(ocr_data, ensure_ascii=False, indent=2)
+        edited_json = st.text_area("Редактировать JSON", value=json_str, height=200)
+        
+        st.download_button(
+            label="Скачать JSON",
+            data=edited_json,
+            file_name=f"{os.path.splitext(filename)[0]}_page{st.session_state.page + 1}.json",
+            mime="application/json"
+        )
+        st.subheader("Таблица данных (CSV):")
+        fields = ocr_data.get("fields", {})
+        df_fields = pd.DataFrame(list(fields.items()), columns=["Поле", "Значение"])
+
+        edited_df = st.data_editor(df_fields, num_rows="dynamic", use_container_width=True)
+
+        csv_buffer = StringIO()
+        edited_df.to_csv(csv_buffer, index=False)
+        csv_data = csv_buffer.getvalue().encode("utf-8-sig")
+        
+        st.download_button(
+            label="Скачать CSV",
+            data=csv_data,
+            file_name=f"{os.path.splitext(filename)[0]}_page{st.session_state.page + 1}.csv",
+            mime="text/csv"
+        )
+
 
 
 if __name__ == "__main__":
