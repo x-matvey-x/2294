@@ -15,11 +15,12 @@ def pdf_to_images(pdf_bytes, save_dir, filename):
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     saved_paths = []
     for i, page in enumerate(doc):
-        pix = page.get_pixmap()
+        mat = fitz.Matrix(2.0, 2.0)
+        pix = page.get_pixmap(matrix=mat)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         page_filename = f"{doc_name}_page{i+1}.jpg"
         path = os.path.join(save_dir, page_filename)
-        img.save(path, "JPEG")
+        img.save(path, "JPEG", quality=95, optimize=True, subsampling=0)
         saved_paths.append(path)
     return saved_paths
 
@@ -30,11 +31,12 @@ def zip_to_images(zip_bytes, save_dir, filename):
     with zipfile.ZipFile(BytesIO(zip_bytes)) as z:
         for i, file_info in enumerate(z.infolist()):
             if file_info.filename.lower().endswith((".png", ".jpg", ".jpeg")):
-                z.extract(file_info, path=save_dir)
-                old_path = os.path.join(save_dir, file_info.filename)
+                with z.open(file_info) as img_file:
+                    img = Image.open(img_file)
+
                 page_filename = f"{doc_name}_page{i+1}.jpg"
                 new_path = os.path.join(save_dir, page_filename)
-                os.rename(old_path, new_path)
+                img.save(new_path, "JPEG", quality=95, subsampling=0)
                 saved_paths.append(new_path)
     return saved_paths
 
@@ -43,8 +45,9 @@ def single_image(image_bytes, filename, save_dir):
     doc_name = os.path.splitext(filename)[0]
     page_filename = f"{doc_name}_page1.jpg"
     path = os.path.join(save_dir, page_filename)
-    with open(path, "wb") as f:
-        f.write(image_bytes)
+    img = Image.open(BytesIO(image_bytes))
+
+    img.save(path, "JPEG", quality=95, optimize=True, subsampling=0)
     return [path]
 
 
