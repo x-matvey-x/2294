@@ -36,3 +36,4 @@ saved_images/
 # OS
 .DS_Store
 Thumbs.db
+.env
