@@ -6,10 +6,8 @@ import zipfile
 from io import BytesIO, StringIO
 import json
 import pandas as pd
-from dotenv import load_dotenv
 from llm import qwen_ocr
 
-load_dotenv()
 
 st.set_page_config(layout="wide", page_title="OCR Converter")
 
@@ -72,10 +70,11 @@ def main():
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        st.warning("OpenRouter API ключ не найден в .env файле")
-        api_key = st.text_input("Введите OpenRouter API ключ:", type="password")
-        if not api_key:
-            st.stop()
+        try:
+            api_key = st.secrets["OPENROUTER_API_KEY"]
+        except:
+            pass
+        
     
     uploaded_file = st.file_uploader("Загрузите файл", type=["pdf", "zip", "png", "jpg", "jpeg"])
     
