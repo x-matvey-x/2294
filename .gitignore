@@ -37,3 +37,4 @@ saved_images/
 .DS_Store
 Thumbs.db
 .env
+.streamlit/
