@@ -10,11 +10,9 @@ import time
 import threading
 from llm import qwen_ocr
 from streamlit_autorefresh import st_autorefresh
-
+import uuid
 st.set_page_config(layout="wide", page_title="OCR Converter")
 
-output_dir = "saved_images"
-os.makedirs(output_dir, exist_ok=True)
 
 def initialize_session_state():
     if "ocr_results" not in st.session_state:
@@ -31,6 +29,11 @@ def initialize_session_state():
         st.session_state.image_paths = []
     if "total_pages" not in st.session_state:
         st.session_state.total_pages = 0
+
+    if "session_dir" not in st.session_state:
+        session_id = str(uuid.uuid4())
+        st.session_state.session_dir = os.path.join("saved_images", session_id)
+        os.makedirs(st.session_state.session_dir, exist_ok=True)
 
 def pdf_to_images(pdf_bytes, save_dir, filename):
     doc_name = os.path.splitext(filename)[0]
@@ -75,47 +78,71 @@ def single_image(image_bytes, filename, save_dir):
     img_resized.save(path, "JPEG", quality=95)
     return [path]
 
-def ocr_worker(page_num, image_path, filename, total_pages, api_key, result_dict, status_dict, progress_dict):
-    try:
-        status_dict[page_num] = "processing"
-        progress_dict[page_num] = 0
+def ocr_worker(page_num, image_path, filename, total_pages, api_key, result_dict, status_dict):
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            status_dict[page_num] = "processing"
+            
+            ocr_data = qwen_ocr(
+                image_path,
+                filename,
+                page_num,
+                total_pages,
+                api_key
+            )
 
-        for i in range(10):
-            time.sleep(0.5)
-            progress_dict[page_num] = (i + 1) / 10 * 100
-        
-        ocr_data = qwen_ocr(
-            image_path,
-            filename,
-            page_num,
-            total_pages,
-            api_key
-        )
-        result_dict[page_num] = ocr_data
-        status_dict[page_num] = "completed"
-    except Exception as e:
-        result_dict[page_num] = {"metadata": {"error": str(e)}}
-        status_dict[page_num] = "error"
+            if "document_json" in ocr_data and ocr_data["document_json"]:
+                try:
+
+                    json_str = json.dumps(ocr_data["document_json"])
+                    json.loads(json_str)
+
+                    result_dict[page_num] = ocr_data
+                    status_dict[page_num] = "completed"
+                    return
+                except json.JSONDecodeError:
+                    if attempt < max_retries - 1:
+
+                        continue
+                    else:
+
+                        result_dict[page_num] = {
+                            "metadata": {"error": "Невалидный JSON после всех попыток"},
+                            "document_json": ocr_data.get("document_json")
+                        }
+                        status_dict[page_num] = "error"
+                        return
+            else:
+                result_dict[page_num] = ocr_data
+                status_dict[page_num] = "completed"
+                return
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+            else:
+                result_dict[page_num] = {"metadata": {"error": str(e)}}
+                status_dict[page_num] = "error"
 
 def start_ocr_background(page_num, image_path, filename, total_pages, api_key):
     if page_num not in st.session_state.ocr_status or st.session_state.ocr_status[page_num] in ["pending", "error"]:
-        st.session_state.ocr_status[page_num] = "pending"
+        st.session_state.ocr_status[page_num] = "processing"
         st.session_state.ocr_progress[page_num] = 0
 
         result_dict = {}
         status_dict = {}
-        progress_dict = {}
         
         thread = threading.Thread(
             target=ocr_worker,
-            args=(page_num, image_path, filename, total_pages, api_key, result_dict, status_dict, progress_dict)
+            args=(page_num, image_path, filename, total_pages, api_key, result_dict, status_dict)
         )
         thread.daemon = True
         thread.start()
         
         st.session_state._ocr_result_dicts[page_num] = result_dict
         st.session_state._ocr_status_dicts[page_num] = status_dict
-        st.session_state._ocr_progress_dicts[page_num] = progress_dict
 
 def get_ocr_status(page_num):
     if page_num not in st.session_state.ocr_status:
@@ -128,11 +155,6 @@ def get_ocr_status(page_num):
     
     return status
 
-def get_ocr_progress(page_num):
-    if page_num in st.session_state._ocr_progress_dicts:
-        return st.session_state._ocr_progress_dicts[page_num].get(page_num, 0)
-    return st.session_state.ocr_progress.get(page_num, 0)
-
 def main():
     st.title("OCR Converter")
 
@@ -141,9 +163,8 @@ def main():
         st.session_state._ocr_result_dicts = {}
     if "_ocr_status_dicts" not in st.session_state:
         st.session_state._ocr_status_dicts = {}
-    if "_ocr_progress_dicts" not in st.session_state:
-        st.session_state._ocr_progress_dicts = {}
 
+    output_dir = st.session_state.session_dir
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         try:
@@ -169,7 +190,6 @@ def main():
             st.session_state.total_pages = 0
             st.session_state._ocr_result_dicts = {}
             st.session_state._ocr_status_dicts = {}
-            st.session_state._ocr_progress_dicts = {}
 
         if not st.session_state.image_paths:
             for f in os.listdir(output_dir):
@@ -181,7 +201,7 @@ def main():
             elif filename_lower.endswith(".zip"):
                 image_paths = zip_to_images(file_bytes, output_dir, filename)
             elif filename_lower.endswith((".png", ".jpg", ".jpeg")):
-                image_paths = single_image(file_bytes, filename, output_dir)
+                image_paths = single_image( file_bytes, filename, output_dir)
             else:
                 st.error("Тип файла не поддерживается.")
                 return
@@ -223,11 +243,38 @@ def main():
                     start_ocr_background(current_page, current_image_path, filename, st.session_state.total_pages, api_key)
                     st.rerun()
             
+
             if status == "processing":
                 st_autorefresh(interval=1000, key=f"refresh_{current_page}")
 
-                progress = get_ocr_progress(current_page)
-                st.progress(progress / 100, text=f"Обработка... {progress:.0f}%")
+                if current_page in st.session_state._ocr_status_dicts:
+                    thread_status = st.session_state._ocr_status_dicts[current_page].get(current_page)
+                    if thread_status == "completed":
+                        result = st.session_state._ocr_result_dicts[current_page].get(current_page)
+                        st.session_state.ocr_results[current_page] = result
+                        st.session_state.ocr_status[current_page] = "completed"
+                        st.rerun()
+                    elif thread_status == "error":
+                        result = st.session_state._ocr_result_dicts[current_page].get(current_page)
+                        st.session_state.ocr_results[current_page] = result
+                        st.session_state.ocr_status[current_page] = "error"
+                        st.rerun()
+                
+                st.markdown("""
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; 
+                                    border-radius: 50%; width: 40px; height: 40px; 
+                                    animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                        <p style="margin-top: 10px;">Распознавание текста...</p>
+                    </div>
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
+                    
 
             if status in ["completed", "error"]:
                 ocr_data = st.session_state.ocr_results.get(current_page)
@@ -285,7 +332,7 @@ def main():
                         edited_df = st.data_editor(
                             df_table,
                             num_rows="dynamic",
-                            use_container_width=True,
+                            use_container_width=True    ,
                             key=f"csv_editor_{current_page}"
                         )
                         
