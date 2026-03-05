@@ -88,8 +88,7 @@ def ocr_worker(page_num, image_path, filename, total_pages, api_key, result_dict
                 image_path,
                 filename,
                 page_num,
-                total_pages,
-                api_key
+                total_pages
             )
 
             if "document_json" in ocr_data and ocr_data["document_json"]:

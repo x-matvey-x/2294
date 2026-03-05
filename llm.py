@@ -7,6 +7,7 @@ import requests
 import json
 import os
 from PIL import Image
+from openai import OpenAI
 
 
 def encode_img_base64(image_path):
