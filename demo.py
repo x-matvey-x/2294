@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import time
 import threading
-from llm import qwen_ocr
+from llm import qwen_ocr,local_ocr
 from streamlit_autorefresh import st_autorefresh
 import uuid
 st.set_page_config(layout="wide", page_title="OCR Converter")
@@ -84,7 +84,7 @@ def ocr_worker(page_num, image_path, filename, total_pages, api_key, result_dict
         try:
             status_dict[page_num] = "processing"
             
-            ocr_data = qwen_ocr(
+            ocr_data = local_ocr(
                 image_path,
                 filename,
                 page_num,
