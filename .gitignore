@@ -38,3 +38,4 @@ saved_images/
 Thumbs.db
 .env
 .streamlit/
+.cli_results/

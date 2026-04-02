@@ -1,11 +1,17 @@
 import base64
 import io
-import json
 import os
 
 import requests
+import yaml
 from openai import OpenAI
 from PIL import Image
+
+
+def load_config() -> dict:
+    config_path = os.path.join(os.path.dirname(__file__), "..", "configs", "model_config.yaml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 PROMPT = """Проанализируй изображение документа и извлеки информацию В ДВА БЛОКА.
@@ -92,9 +98,7 @@ def encode_img_base64(image_path: str) -> str:
 
 
 def run_qwen(image_path: str, api_key: str) -> str:
-    """
-    Отправляет картинку в Qwen через OpenRouter, возвращает сырой текст ответа.
-    """
+    config = load_config()["qwen"]
     img_base64 = encode_img_base64(image_path)
 
     headers = {
@@ -103,7 +107,7 @@ def run_qwen(image_path: str, api_key: str) -> str:
     }
 
     payload = {
-        "model": "qwen/qwen-2.5-vl-72b-instruct",
+        "model": config["model"],
         "messages": [
             {
                 "role": "user",
@@ -116,12 +120,12 @@ def run_qwen(image_path: str, api_key: str) -> str:
                 ],
             }
         ],
-        "temperature": 0.1,
-        "max_tokens": 4096,
+        "temperature": config["temperature"],
+        "max_tokens": config["max_tokens"],
     }
 
     response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+        config["api_url"],
         headers=headers,
         json=payload,
         timeout=60,
@@ -134,19 +138,17 @@ def run_qwen(image_path: str, api_key: str) -> str:
 
 
 def run_local(image_path: str) -> str:
-    """
-    Отправляет картинку в локальную модель HunyuanOCR, возвращает сырой текст ответа.
-    """
+    config = load_config()["local"]
     img_base64 = encode_img_base64(image_path)
 
     client = OpenAI(
         api_key="EMPTY",
-        base_url="http://172.18.146.27:8009/v1",
+        base_url=config["base_url"],
         timeout=3600,
     )
 
     response = client.chat.completions.create(
-        model="tencent/HunyuanOCR",
+        model=config["model"],
         messages=[
             {
                 "role": "user",
@@ -159,8 +161,8 @@ def run_local(image_path: str) -> str:
                 ],
             }
         ],
-        temperature=0.0,
-        max_tokens=2000,
+        temperature=config["temperature"],
+        max_tokens=config["max_tokens"],
     )
 
     return response.choices[0].message.content.strip()
