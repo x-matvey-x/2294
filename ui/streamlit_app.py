@@ -3,6 +3,7 @@ import json
 import threading
 import uuid
 from io import StringIO
+import sys
 
 import pandas as pd
 import streamlit as st
@@ -13,7 +14,7 @@ from pipeline.pipeline import run_page
 from pipeline.document_loader import load_document
 
 st.set_page_config(layout="wide", page_title="OCR Converter")
-
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def initialize_session_state():
     if "ocr_results" not in st.session_state:
