@@ -6,6 +6,8 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - PYTHONPATH=/app
     volumes:
       - ./saved_images:/app/saved_images
 
@@ -16,5 +18,7 @@ services:
       - "8501:8501"
     env_file:
       - .env
+    environment:
+      - PYTHONPATH=/app
     volumes:
       - ./saved_images:/app/saved_images
