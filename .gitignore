@@ -39,3 +39,4 @@ Thumbs.db
 .env
 .streamlit/
 .cli_results/
+.my_results/

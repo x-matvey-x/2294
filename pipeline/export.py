@@ -1,8 +1,5 @@
 import json
 import os
-from io import StringIO
-
-import pandas as pd
 
 
 def export_json(result: dict, output_dir: str, filename: str, page_num: int) -> str:
@@ -15,7 +12,7 @@ def export_json(result: dict, output_dir: str, filename: str, page_num: int) -> 
 
     os.makedirs(output_dir, exist_ok=True)
     doc_name = os.path.splitext(filename)[0]
-    out_path = os.path.join(output_dir, f"{doc_name}_page{page_num + 1}.json")
+    out_path = os.path.join(output_dir, f"{doc_name}_page{page_num + 1}_doc.json")
 
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(doc_json, f, ensure_ascii=False, indent=2)
@@ -23,44 +20,41 @@ def export_json(result: dict, output_dir: str, filename: str, page_num: int) -> 
     return out_path
 
 
-def export_csv(result: dict, output_dir: str, filename: str, page_num: int) -> str:
+def export_items(result: dict, output_dir: str, filename: str, page_num: int) -> str:
     """
-    Сохраняет table_csv в .csv файл, возвращает путь к файлу.
+    Сохраняет table_items в .json файл, возвращает путь к файлу.
     """
-    table_data = result.get("table_csv")
-    if not table_data or len(table_data) == 0:
+    table_items = result.get("table_items")
+    if not table_items or len(table_items) == 0:
         return None
 
     os.makedirs(output_dir, exist_ok=True)
     doc_name = os.path.splitext(filename)[0]
-    out_path = os.path.join(output_dir, f"{doc_name}_page{page_num + 1}.csv")
+    out_path = os.path.join(output_dir, f"{doc_name}_page{page_num + 1}_items.json")
 
-    df = pd.DataFrame(table_data)
-    df.to_csv(out_path, index=False, encoding="utf-8-sig")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(table_items, f, ensure_ascii=False, indent=2)
 
     return out_path
 
 
 def export_all(result: dict, output_dir: str, filename: str, page_num: int) -> dict:
     """
-    Сохраняет и JSON и CSV, возвращает словарь с путями к файлам.
+    Сохраняет и document_json и table_items, возвращает словарь с путями.
     """
     return {
         "json_path": export_json(result, output_dir, filename, page_num),
-        "csv_path": export_csv(result, output_dir, filename, page_num),
+        "items_path": export_items(result, output_dir, filename, page_num),
     }
 
 
-def result_to_csv_bytes(result: dict) -> bytes:
+def result_to_items_bytes(result: dict) -> bytes:
     """
-    Конвертирует table_csv из результата в байты CSV — для отдачи через API или Streamlit
+    Конвертирует table_items в байты JSON — для отдачи через API или Streamlit
     без сохранения на диск.
     """
-    table_data = result.get("table_csv")
-    if not table_data or len(table_data) == 0:
+    table_items = result.get("table_items")
+    if not table_items or len(table_items) == 0:
         return None
 
-    df = pd.DataFrame(table_data)
-    buffer = StringIO()
-    df.to_csv(buffer, index=False, encoding="utf-8-sig")
-    return buffer.getvalue().encode("utf-8-sig")
+    return json.dumps(table_items, ensure_ascii=False, indent=2).encode("utf-8")

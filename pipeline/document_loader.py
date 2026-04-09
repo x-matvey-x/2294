@@ -71,3 +71,19 @@ def load_document(file_bytes: bytes, filename: str, save_dir: str) -> list[str]:
         return single_image(file_bytes, filename, save_dir)
     else:
         raise ValueError(f"Неподдерживаемый формат файла: {filename}")
+    
+def unzip_documents(zip_bytes: bytes) -> list[tuple[str, bytes]]:
+    """
+    Вытаскивает PDF файлы из ZIP архива.
+    Возвращает список (filename, file_bytes).
+    """
+    documents = []
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as z:
+        for file_info in z.infolist():
+            if file_info.filename.lower().endswith(".pdf"):
+                with z.open(file_info) as f:
+                    documents.append((
+                        os.path.basename(file_info.filename),
+                        f.read()
+                    ))
+    return documents

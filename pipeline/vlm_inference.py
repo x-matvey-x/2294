@@ -48,33 +48,43 @@ PROMPT = """Проанализируй изображение документа
   }
 }
 
-БЛОК 2 - CSV таблица (массив объектов для преобразования в CSV):
+БЛОК 2 - JSON массив строк таблицы. Каждая строка — объект со строго фиксированными полями:
 [
   {
-    "столбец_1": "значение",
-    "столбец_2": "значение"
+    "item_position": "1",
+    "item_desc": "Название товара или услуги",
+    "item_qty": "10",
+    "item_unit": "шт",
+    "item_price": "1 000,00",
+    "item_amount": "10 000,00",
+    "item_vat_rate": "20%",
+    "item_vat_amount": "2 000,00",
+    "item_total_with_vat": "12 000,00",
+    "item_article": "",
+    "item_product_code": "",
+    "item_country_name": "",
+    "item_country_code": "",
+    "item_customs_declaration": "",
+    "item_excise": ""
   }
 ]
 
 ИТОГОВАЯ СТРУКТУРА ОТВЕТА:
 {
   "document_json": { /* JSON с реквизитами */ },
-  "table_csv": [ /* массив строк таблицы */ ],
+  "table_items": [ /* массив строк таблицы */ ],
   "totals": {
-    "Итого": 192000.00,
-    "НДС_20": 32000.00,
-    "Всего_к_оплате": 192000.00
+    "Итого": "192 000,00",
+    "НДС_20": "32 000,00",
+    "Всего_к_оплате": "192 000,00"
   }
 }
 
 ПРАВИЛА ДЛЯ ТАБЛИЦЫ:
-1. Извлекай ТОЧНЫЕ названия столбцов из заголовка таблицы
-2. Если столбец называется "№" - используй "№"
-3. Если "Товары (работы, услуги)" - используй "Товары (работы, услуги)"
+1. Используй СТРОГО фиксированные названия полей: item_position, item_desc, item_qty, item_unit, item_price, item_amount, item_vat_rate, item_vat_amount, item_total_with_vat, item_article, item_product_code, item_country_name, item_country_code, item_customs_declaration, item_excise
+2. Если поле в документе отсутствует — оставь пустую строку ""
+3. Числовые значения оставляй как строки, точно как написано в документе
 4. Каждая строка таблицы = один объект в массиве
-5. Все ЧИСЛОВЫЕ значения (цены, суммы, количество) - в формате float БЕЗ пробелов
-   Правильно: 192000.00
-   Неправильно: "192 000,00"
 
 ПРАВИЛА ДЛЯ РЕКВИЗИТОВ:
 1. Если блок отсутствует - верни null
@@ -84,11 +94,10 @@ PROMPT = """Проанализируй изображение документа
 
 СПЕЦИАЛЬНЫЕ СЛУЧАИ:
 - Только таблица без реквизитов: "document_json": null
-- Только реквизиты без таблицы: "table_csv": null, "totals": null
+- Только реквизиты без таблицы: "table_items": null, "totals": null
 - Рукописный текст ИГНОРИРУЙ
 
 Верни ТОЛЬКО JSON без markdown разметки."""
-
 
 def encode_img_base64(image_path: str) -> str:
     with Image.open(image_path) as img:
@@ -128,7 +137,7 @@ def run_qwen(image_path: str, api_key: str) -> str:
         config["api_url"],
         headers=headers,
         json=payload,
-        timeout=60,
+        timeout=120,
     )
 
     if response.status_code != 200:

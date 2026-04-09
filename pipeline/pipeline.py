@@ -50,3 +50,27 @@ def run(file_bytes: bytes, filename: str, save_dir: str, output_dir: str = None,
         results.append(result)
 
     return results
+
+def run_batch(zip_bytes: bytes, save_dir: str, output_dir: str = None, use_local: bool = True, api_key: str = None) -> dict:
+    """
+    Принимает ZIP с PDF документами, обрабатывает каждый.
+    Возвращает словарь: имя файла → список результатов по страницам.
+    """
+    from pipeline.document_loader import unzip_documents
+    
+    documents = unzip_documents(zip_bytes)
+    batch_results = {}
+
+    for filename, file_bytes in documents:
+        print(f"\nДокумент: {filename}")
+        results = run(
+            file_bytes=file_bytes,
+            filename=filename,
+            save_dir=save_dir,
+            output_dir=output_dir,
+            use_local=use_local,
+            api_key=api_key,
+        )
+        batch_results[filename] = results
+
+    return batch_results
