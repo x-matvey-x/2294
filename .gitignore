@@ -38,5 +38,7 @@ saved_images/
 Thumbs.db
 .env
 .streamlit/
-.cli_results/
-.my_results/
+
+
+cli_results/
+my_results/
