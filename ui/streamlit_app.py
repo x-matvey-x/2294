@@ -45,7 +45,19 @@ def initialize_session_state():
         st.session_state.batch_status = "idle"
 
 
-# ─── OCR воркер для одного документа ───────────────────────────────────────
+# ─── Таблица реквизитов ──────────────────────────────────────────────────────
+
+def render_requisites_table(doc_json: dict):
+    requisites = doc_json.get("Реквизиты")
+    if requisites and isinstance(requisites, dict):
+        rows = [{"Поле": k, "Значение": str(v) if v is not None else ""} for k, v in requisites.items()]
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.info("Реквизиты не найдены")
+
+
+# ─── OCR воркер ─────────────────────────────────────────────────────────────
 
 def ocr_worker(page_num, image_path, filename, total_pages, api_key, result_dict, status_dict, model):
     max_retries = 3
@@ -149,9 +161,17 @@ def render_page_result(ocr_data, base_name, page_num):
                 st.code(ocr_data["metadata"]["raw_response"])
         return
 
-    st.subheader("JSON")
     doc_json = ocr_data.get("document_json")
+
     if doc_json:
+        # Таблица реквизитов
+        st.subheader("Реквизиты")
+        render_requisites_table(doc_json)
+
+        st.divider()
+
+        # JSON редактор
+        st.subheader("JSON")
         json_key = f"edited_json_{base_name}_{page_num}"
         if json_key not in st.session_state:
             st.session_state[json_key] = json.dumps(doc_json, ensure_ascii=False, indent=2)
@@ -175,6 +195,7 @@ def render_page_result(ocr_data, base_name, page_num):
 
     st.divider()
 
+    # Позиции таблицы
     st.subheader("Позиции таблицы")
     table_items = ocr_data.get("table_items")
     if table_items and len(table_items) > 0:
