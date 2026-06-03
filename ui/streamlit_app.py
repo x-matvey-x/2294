@@ -45,7 +45,7 @@ def initialize_session_state():
         st.session_state.batch_status = "idle"
 
 
-# ─── Таблица реквизитов ──────────────────────────────────────────────────────
+# Таблица реквизитов ──────────────────────────────────────────────────────
 
 def render_requisites_table(doc_json: dict):
     requisites = doc_json.get("Реквизиты")
