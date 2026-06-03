@@ -17,7 +17,26 @@ def run_page(image_path: str, filename: str, page_num: int, total_pages: int, us
             raise ValueError("api_key обязателен при use_local=False")
         raw_text = run_qwen(image_path, api_key)
 
-    result = process_result(raw_text, filename, page_num, total_pages)
+    print("===== RAW MODEL RESPONSE START =====")
+    print(raw_text)
+    print("===== RAW MODEL RESPONSE END =====")
+
+    try:
+        result = process_result(raw_text, filename, page_num, total_pages)
+    except Exception as e:
+        result = {
+            "metadata": {
+                "document_name": filename,
+                "page": page_num + 1,
+                "total_pages": total_pages,
+                "error": str(e),
+                "raw_response": raw_text,
+            },
+            "document_json": None,
+            "table_items": None,
+            "totals": None,
+        }
+
     return result
 
 
