@@ -1,6 +1,6 @@
 local:
-  base_url: "http://172.18.146.27:8009/v1"
-  model: "tencent/HunyuanOCR"
+  base_url: "http://172.18.146.27:8001/v1"
+  model: "razxr/qwen3-vl-4b-2294-project_v4"
   temperature: 0.0
   max_tokens: 2000
 
